@@ -7,7 +7,7 @@ export function useGhToken() {
   const [ghToken, setGhToken] = useState<string | null>(null);
 
   useEffect(() => {
-    user.getConnectedAccount('github', { or: 'redirect', scopes: ['repo'] })
+    user.getConnectedAccount('github', { or: 'redirect', scopes: ['public_repo'] })
     .then(account => account.getAccessToken())
     .then(data => setGhToken(data.accessToken));
   }, []);

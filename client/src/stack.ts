@@ -7,6 +7,6 @@ export const stackClientApp = new StackClientApp({
   tokenStore: "cookie",
   redirectMethod: { useNavigate },
   oauthScopesOnSignIn: {
-    github: ["repo"]
+    github: ["public_repo"]
   }
 }); 
