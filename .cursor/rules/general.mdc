@@ -1,0 +1,41 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## General
+Do not write comments, it is better to create small helper functions or components instead to explain a complicated section
+
+## Layout
+/client contains the frontend code
+/server contains the backend code
+
+## Frontend
+The frontend uses react, typescript, and shadcn
+All files should be kebab cased but component and hooks should be pascal cased in the file, so some-component.tsx exports default SomeComponent
+Always defines props at the top of the component file with interface Props {...}
+Do not use an index.ts to export files in a folder
+Always use tailwindcss for styling
+Always use lucide-react icons
+Try to use shadcn components whenever possible
+Use typescript and avoid using "any" types
+Always use react query. Use the use-api hook in src/components/api for a typesafe react query call to our server
+After changing a route in server make sure to run "npm run generate" in client folder to regenerate the openapi types
+
+## Backend
+The backend uses uv, python, fastapi, pydantic, and asyncpg
+Always use async whenever possible
+You can start the backend server by running "uv run python -m api" from the server folder
+The api folder is split by folder. Each folder can contain the following files:
+- views.py which defines fastapi routes. These are all imported in api/app.py
+- service.py which wrap database calls
+- dependencies.py which defines fastapi dependencies
+- settings.py which define environment variables using pydantic settings
+- models.py which define pydantic models
+All database tables are defined in server/api/database/models.py with sqlmodel
+Use alembic to update the database tables by running "alembic revision --autogenerate -m MESSAGE", which reads models from api/database/models.py
+Then run "alembic upgrade head" to apply the latest migration locally
+ONLY run alembic commands when specifically asked to perform a migration
+Run "uv run mypy ." to do type checking
+Run "uvx ruff check --preview --fix" to do linting and formatting
+Always run mypy and ruff after editing code in the backend
