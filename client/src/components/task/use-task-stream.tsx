@@ -1,4 +1,4 @@
-import { useState, useEffect, type SetStateAction, type Dispatch } from "react";
+import { useState, useEffect, useRef, type SetStateAction, type Dispatch } from "react";
 import { useApi } from "@/components/api/use-api";
 import type { ChatMessage, TextContentBlock } from "@/components/chat/types";
 import type { components } from "@/generated/openapi";
@@ -20,6 +20,7 @@ interface UseTaskStreamReturn {
   isStreaming: boolean;
   streamingError: string;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  refetchStream: () => void;
 }
 
 export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamReturn {
@@ -30,6 +31,7 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
   ]);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingError, setStreamingError] = useState<string>("");
+  const streamRef = useRef<{ cancel: () => void } | null>(null);
 
   const { data: task } = $api.useQuery("get", "/task/{task_id}", {
     params: { path: { task_id: taskId! } }
@@ -140,8 +142,11 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
     }
   }
 
-  useEffect(() => {
+  const startStream = () => {
     if (!taskId) return;
+    if (streamRef.current) {
+      streamRef.current.cancel();
+    }
     setIsStreaming(true);
     setStreamingError("");
 
@@ -149,9 +154,22 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
       params: {
         path: { task_id: taskId }
       }
-    }, handleTaskEvent)
+    }, handleTaskEvent);
+    streamRef.current = stream;
+    return stream;
+  };
 
-    return () => stream.cancel();
+  const refetchStream = () => {
+    startStream();
+  };
+
+  useEffect(() => {
+    const stream = startStream();
+    return () => {
+      if (stream) {
+        stream.cancel();
+      }
+    };
   }, [taskId]);
 
   useEffect(() => {
@@ -165,12 +183,11 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
     });
   }, [task, messages]);
 
-
-
   return {
     messages,
     isStreaming,
     streamingError,
     setMessages,
+    refetchStream,
   };
 } 

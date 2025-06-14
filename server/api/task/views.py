@@ -124,4 +124,4 @@ async def create_message(
         create_message_param_from_message(message, blocks) 
         for message, blocks in messages_and_blocks
     ]
-    background_tasks.add_task(run_agent_flow, task, message_params)
+    background_tasks.add_task(run_agent_flow, task, message_params, project.rules_file_path)

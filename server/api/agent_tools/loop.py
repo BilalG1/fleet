@@ -15,6 +15,7 @@ async def run_agent_loop(
     task_id: int,
     toolbox: AgentToolbox, 
     messages: list[MessageParam],
+    user_rules_file_content: str,
     max_iterations: int = 20
 ) -> None:
     client = AsyncAnthropic(api_key=llm_config.anthropic_api_key)
@@ -25,7 +26,7 @@ async def run_agent_loop(
         async with client.messages.stream(
             model="claude-4-sonnet-20250514",
             max_tokens=10_000,
-            system=get_system_prompt(),
+            system=get_system_prompt(user_rules_file_content),
             messages=current_messages,
             tools=toolbox.to_params(),
         ) as stream:
@@ -91,7 +92,7 @@ async def run_agent_loop(
         current_messages.append({ "role": "user", "content": tool_results })
 
 
-def get_system_prompt() -> str:
+def get_system_prompt(user_rules_file_content: str) -> str:
     return f"""
 You are a helpful programmer. Your job is to help the user with their task by using the tools provided to you.
 You are working in a lightweight sandbox environment, so feel free to run any commands you need to without asking.
@@ -104,4 +105,8 @@ Always try to make multiple tool calls at once to avoid round trips to the sandb
 All commands timeout after 10 seconds.
 For the bash tool always pass in an extra parameter "description" which is a short 2-4 word summary of what the command does that is shown to the user.
 </tools>
+
+<user_rules>
+{user_rules_file_content}
+</user_rules>
 """ 

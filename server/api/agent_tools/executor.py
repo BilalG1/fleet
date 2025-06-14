@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 import nanoid
-from e2b_code_interpreter import AsyncSandbox, CommandExitException, AsyncCommandHandle
+from e2b_code_interpreter import AsyncSandbox, CommandExitException, AsyncCommandHandle, NotFoundException
 import api.task.service as task_service
 from sqlmodel.ext.asyncio.session import AsyncSession
 from api.task.settings import config
@@ -49,7 +49,7 @@ class SandboxExecutor:
         if self.current_marker:
             self.output_buffer.append(output)
 
-    async def run(self, command: str) -> str:
+    async def run(self, command: str, raise_on_error: bool = False) -> str:
         if not self.sbx or not self.command:
             raise RuntimeError("SandboxExecutor must be used as an async context manager")
             
@@ -61,7 +61,11 @@ class SandboxExecutor:
                 await self.restart_bash()
 
             command_with_marker = f"{command}; echo '{self.current_marker}'\n"
-            await self.sbx.commands.send_stdin(self.command.pid, command_with_marker, request_timeout=5)
+            try:
+                await self.sbx.commands.send_stdin(self.command.pid + 1, command_with_marker, request_timeout=5)
+            except NotFoundException:
+                await self.restart_bash()
+                await self.sbx.commands.send_stdin(self.command.pid, command_with_marker, request_timeout=5)
             try:
                 await asyncio.wait_for(self.command_complete_event.wait(), timeout=10)
             except asyncio.TimeoutError:
@@ -75,6 +79,8 @@ class SandboxExecutor:
             return terminal_text
             
         except CommandExitException as e:
+            if raise_on_error:
+                raise e
             terminal_text = f"\n```bash\n$ {command}\nError: {str(e)}\n```\n"
             return terminal_text
         except Exception as e:
@@ -95,4 +101,3 @@ class SandboxExecutor:
         self.command = result
         self.output_buffer = []
         self.command_complete_event.clear()
-        self.current_marker = None 

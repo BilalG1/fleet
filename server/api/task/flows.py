@@ -12,27 +12,23 @@ import api.task.service as task_service
 from typing import Callable, Awaitable, Any, Literal
 from functools import wraps
 from sqlmodel.ext.asyncio.session import AsyncSession
+from e2b_code_interpreter import CommandExitException, NotFoundException
 
 SETUP_TOOL_ID = "setup_tool_id"
 
 
 def with_sandbox(sandbox_id_attr: Literal["sandbox_id"] | None = None) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
-    """Decorator that provides sandbox executor and session management with error handling."""
     def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Extract task from first argument
             task = args[0] if args else None
             if not isinstance(task, Task):
                 raise ValueError("First argument must be a Task instance")
-            
-            # Get sandbox_id from task attribute if specified
             sandbox_id = getattr(task, sandbox_id_attr) if sandbox_id_attr else None
             
             async for session in get_session():
                 async with SandboxExecutor(task.id, session, sandbox_id) as executor:
                     try:
-                        # Call original function with executor and session as additional args
                         return await func(*args, executor, session, **kwargs)
                     except Exception as e:
                         print(f"Error running agent flow: {e}")
@@ -54,7 +50,10 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, ex
     ]))
     clone_command = f"git clone {project.repo_clone_url} {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
     clone_output = await _run_setup_command(executor,task.id, clone_command, f"Cloning repository {project.repo_name}")
-    rules_output = await _run_setup_command(executor,task.id, f"cat {project.rules_file_path}", "Reading rules file")
+    try:
+        rules_output = await _run_setup_command(executor,task.id, f"cat {REPO_PATH}/{project.rules_file_path}", "Reading rules file")
+    except CommandExitException:
+        rules_output = "No rules file found"
     setup_output = await _run_setup_command(executor, task.id,  project.setup_script_path,  "Running setup script")
 
     await queue_service.push(task.id, ToolInputSetup(
@@ -65,7 +64,7 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, ex
     combined_output = "".join([
         f"Installing git:{git_output}",
         f"Cloning repository:{clone_output}",
-        f"Reading rules file:{rules_output}",
+        f"Reading rules file: {rules_output}",
         f"Running setup script:{setup_output}",
     ])
     await queue_service.push(task.id, ToolResultBlock(
@@ -75,21 +74,32 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, ex
 
     toolbox = AgentToolbox(executor)
     starting_messages: list[MessageParam] = [{ "role": "user", "content": task.description }]
-    await run_agent_loop(task.id, toolbox, messages=starting_messages)
+    await run_agent_loop(task.id, toolbox, messages=starting_messages, user_rules_file_content=rules_output)
 
 
 @with_sandbox("sandbox_id")
-async def run_agent_flow(task: Task, starting_messages: list[MessageParam], executor: SandboxExecutor, session: AsyncSession) -> None:
+async def run_agent_flow(
+    task: Task, 
+    starting_messages: list[MessageParam], 
+    rules_file_path: str, 
+    executor: SandboxExecutor, 
+    session: AsyncSession
+) -> None:
     await task_service.update_status(session, task.id, "running")
     toolbox = AgentToolbox(executor)
-    await run_agent_loop(task.id, toolbox, messages=starting_messages)
+    try:
+        rules_output = await executor.sbx.files.read(REPO_PATH + "/" + rules_file_path)
+    except NotFoundException:
+        rules_output = "No rules file found"
+    await run_agent_loop(task.id, toolbox, messages=starting_messages, user_rules_file_content=rules_output)
 
 
 async def _run_setup_command(
     executor: SandboxExecutor, 
     task_id: int, 
     command: str, 
-    title: str, 
+    title: str,
+    raise_on_error: bool = False
 ) -> str:
     tool_input = ToolInputSetup(
         tool_id=SETUP_TOOL_ID,
@@ -97,4 +107,4 @@ async def _run_setup_command(
         tool_input=title
     )
     await queue_service.push(task_id, tool_input) # type: ignore
-    return await executor.run(command)
+    return await executor.run(command, raise_on_error)

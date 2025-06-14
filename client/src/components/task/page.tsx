@@ -27,8 +27,12 @@ export default function TaskPage() {
   );
   const project = projects?.find((project) => project.id === project_id);
 
-  const { messages, setMessages } = useTaskStream({ taskId: task_id });
-  const { mutate: sendMessage } = $api.useMutation("post", "/task/{task_id}/messages");
+  const { messages, setMessages, refetchStream } = useTaskStream({ taskId: task_id });
+  const { mutate: sendMessage } = $api.useMutation(
+    "post", 
+    "/task/{task_id}/messages", 
+    { onSuccess: refetchStream }
+  );
 
   useEffect(() => {
     if (!dbMessages?.length || dbMessages.length === 1) return;
