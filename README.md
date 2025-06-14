@@ -1,5 +1,7 @@
 # Fleet - Manage a fleet of coding agents
 
+https://github.com/user-attachments/assets/577552e2-d798-4a1f-91ba-23cd7e77e21e
+
 Fleet is a web app that helps you control multiple cloude-based code agents at once. Each agent runs in it's own sandbox and clones your github repo independently.
 
 ## Running locally
