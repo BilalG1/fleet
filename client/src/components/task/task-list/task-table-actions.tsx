@@ -1,19 +1,19 @@
 import { toast } from "sonner";
 import { Github, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { components } from "@/generated/openapi";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useApi } from "../../api/use-api";
+// import type { components } from "@/generated/openapi";
+// import { useApi } from "../../api/use-api";
 
-type Props = {
-  projectId: string;
-  task: components["schemas"]["TaskPublic"];
-}
+// type Props = {
+//   projectId: string;
+//   task: components["schemas"]["TaskPublic"];
+// }
 
 export default function TaskTableActions() {
 
