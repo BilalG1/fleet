@@ -24,7 +24,6 @@ export const useApi = () => {
 
   const fetchClient = createFetchClient<paths>({
     baseUrl: import.meta.env.VITE_PUBLIC_BACKEND_URL,
-    credentials: "include",
   });
   fetchClient.use(authMiddleware);
 
