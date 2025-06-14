@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { ArrowUp, AudioLines } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useScreenSize } from '../general/use-screen-size';
 
 interface Props {
   onSendMessage: (message: string) => void;
@@ -21,9 +22,9 @@ export function ChatInput({
   autoResize = false,
   placeholder = "Type your reply...",
 }: Props) {
+  const { isMobile } = useScreenSize();
   const [inputText, setInputText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -50,7 +51,7 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !disabled) {
+    if (e.key === 'Enter' && !e.shiftKey && !disabled && !isMobile) {
       e.preventDefault();
       handleSend();
     }

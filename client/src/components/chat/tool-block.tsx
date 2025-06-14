@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import ShinyText from "@/components/loading/shiny-text";
+import ShinyText from "@/components/general/shiny-text";
 import type { ContentBlock } from "./types";
 import { ChevronRight, CheckCircle, XCircle, Pencil, Eye, FilePlus, TerminalSquare, Power } from "lucide-react";
 import { MarkdownContent } from "./markdown-content";

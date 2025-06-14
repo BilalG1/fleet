@@ -27,7 +27,7 @@ export default function TaskPage() {
   );
   const project = projects?.find((project) => project.id === project_id);
 
-  const { messages, setMessages, refetchStream } = useTaskStream({ taskId: task_id });
+  const { messages, setMessages, refetchStream, isStreaming } = useTaskStream({ taskId: task_id });
   const { mutate: sendMessage } = $api.useMutation(
     "post", 
     "/task/{task_id}/messages", 
@@ -62,6 +62,7 @@ export default function TaskPage() {
         messages={messages} 
         onSendMessage={handleSendMessage} 
         loadingMessages={isLoadingDbMessages}
+        isStreaming={isStreaming}
       />
     </div>
   );

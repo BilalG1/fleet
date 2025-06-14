@@ -8,13 +8,14 @@ interface Props {
   messages: ChatMessageType[];
   onSendMessage: (message: string) => void;
   loadingMessages: boolean;
+  isStreaming: boolean;
 }
 
 type RenderItem =
   | { type: 'message'; message: ChatMessageType }
   | { type: 'tool'; toolInput: Extract<ContentBlock, { type: "tool_input" }>; toolResult?: Extract<ContentBlock, { type: "tool_result" }>; isRunning: boolean };
 
-export function ChatContainer({ messages, onSendMessage, loadingMessages }: Props) {
+export function ChatContainer({ messages, onSendMessage, loadingMessages, isStreaming }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [initialScrollComplete, setInitialScrollComplete] = useState(false);
 
@@ -76,6 +77,8 @@ export function ChatContainer({ messages, onSendMessage, loadingMessages }: Prop
     scrollToBottom();
   };
 
+  const toolCallInProgress = renderItems.some(item => item.type === 'tool' && item.isRunning);
+
   return (
     <div ref={containerRef} className="flex flex-col flex-1 overflow-y-auto">
       <div className="flex flex-col max-w-3xl mx-auto w-full grow">
@@ -99,6 +102,11 @@ export function ChatContainer({ messages, onSendMessage, loadingMessages }: Prop
               );
             }
           })}
+          {isStreaming && !toolCallInProgress && (
+            <div className="px-5 py-2">
+              <div className="animate-pulse rounded-full w-4 h-4 bg-gray-400" />
+            </div>
+          )}
         </div>
         <div className="sticky bottom-0 pb-2">
           <ChatInput onSendMessage={handleSendMessage} defaultHeight={40} autoResize />

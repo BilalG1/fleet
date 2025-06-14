@@ -117,6 +117,7 @@ async def create_message(
     if project.user_id != user_id:
         raise HTTPException(status_code=403, detail="You are not allowed to access this task")
     
+    queue_service.create(task.id)
     message = await task_service.create_message(db, task.id, "user", 0)
     await task_service.save_content_blocks(db, message.id, [TextBlock(text=message_data.text)])
     messages_and_blocks = await task_service.get_messages_for_task(db, task.id)
