@@ -10,15 +10,12 @@ Fleet is a web app that helps you control multiple cloude-based code agents at o
 
 ### Setup
 1. **Create environment file:**
-   Create a `.env` file in the project root with your configuration:
-   ```env
-   # Database
-   API_DATABASE_URL=user:password@db:5432/db
-   
-   # Add your API keys and configuration here
-   # ANTHROPIC_API_KEY=your_key_here
-   # GITHUB_TOKEN=your_token_here
+   Copy the example environment file and configure it with your settings:
+   ```bash
+   cp .env.example .env
    ```
+   
+   Then edit the `.env` file to add your API keys and configuration values.
 
 2. **Start the backend:**
    ```bash
