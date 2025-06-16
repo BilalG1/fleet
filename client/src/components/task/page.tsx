@@ -4,7 +4,7 @@ import { useApi } from "@/components/api/use-api";
 import { ChatContainer } from "@/components/chat/ui/chat-container";
 import { useChatMessages } from "@/components/chat";
 import { useTaskStream } from "./use-task-stream";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 
 export default function TaskPage() {
   const { project_id = "", task_id = "" } = useParams<{ project_id: string; task_id: string }>();
