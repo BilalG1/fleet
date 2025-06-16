@@ -21,6 +21,7 @@ dependencies = [
     "anthropic>=0.40.0",
     "nanoid>=2.0.0",
     "cachetools>=6.0.0",
+    "openai>=1.86.0",
 ]
 
 [tool.uv]
