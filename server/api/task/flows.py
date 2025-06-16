@@ -48,8 +48,7 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, sk
         "git config --global push.autoSetupRemote true",
         f"echo \"https://fleet:{gh_access_token}@github.com\" > ~/.git-credentials"
     ]))
-    # clone_command = f"git clone {project.repo_clone_url} {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
-    clone_command = f"git clone https://github.com/stack-auth/stack-auth {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
+    clone_command = f"git clone {project.repo_clone_url} {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
     clone_output = await _run_setup_command(executor,task.id, clone_command, f"Cloning repository {project.repo_name}")
     try:
         rules_output = await _run_setup_command(executor,task.id, f"cat {REPO_PATH}/{project.rules_file_path}", "Reading rules file")
