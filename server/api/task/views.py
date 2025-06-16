@@ -9,6 +9,9 @@ import api.task.queue_service as queue_service
 from api.database.models import Task
 from .models import TaskCreate, TaskPublic, TaskEvent, TextBlock, MessagePublic, MessageCreate, create_message_param_from_message
 from .flows import start_task_flow, run_agent_flow
+from api.agent_tools.executor import SandboxExecutor
+from api.agent_tools.tools import AgentToolbox
+from api.agent_tools.models import ToolInputBlock, ToolResultBlock
 
 router = APIRouter(prefix="/task")
 
@@ -48,7 +51,8 @@ async def create_task(
         start_task_flow, 
         task, 
         project, 
-        task_data.gh_access_token
+        task_data.gh_access_token,
+        task_data.voice_mode
     )
     queue_service.create(task.id)
     return task.external_id
@@ -126,3 +130,34 @@ async def create_message(
         for message, blocks in messages_and_blocks
     ]
     background_tasks.add_task(run_agent_flow, task, message_params, project.rules_file_path)
+
+
+@router.post("/{task_id}/tool-calls")
+async def execute_tool_calls(
+    task_id: str,
+    tool_calls: list[ToolInputBlock],
+    user_id: AuthenticatedUserId,
+    db: DbSession,
+) -> list[ToolResultBlock]:
+    """Execute tool calls for voice mode - accepts external task ID and array of tool calls"""
+    task = await task_service.get(db, task_id)
+    project = await project_service.get_by_id(db, task.project_id)
+    if project.user_id != user_id:
+        raise HTTPException(status_code=403, detail="You are not allowed to access this task")
+    
+    results: list[ToolResultBlock] = []
+    async with SandboxExecutor(task.id, db, task.sandbox_id) as executor:
+        toolbox = AgentToolbox(executor)
+        for tool_input_block in tool_calls:
+            try:
+                tool_result = await toolbox.execute_tool(tool_input_block)
+                result_block = ToolResultBlock.from_tool_result(tool_result)
+                results.append(result_block)
+            except Exception as e:
+                results.append(ToolResultBlock(
+                    tool_id=tool_input_block.tool_id,
+                    tool_result=f"Error: {str(e)}",
+                    is_error=True
+                ))
+    
+    return results

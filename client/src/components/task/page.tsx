@@ -1,15 +1,15 @@
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import ProjectHeader from "@/components/header/project-header";
 import { useApi } from "@/components/api/use-api";
-import { ChatContainer } from "@/components/chat/chat-container";
+import { ChatContainer } from "@/components/chat/ui/chat-container";
+import { useChatMessages } from "@/components/chat";
 import { useTaskStream } from "./use-task-stream";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function TaskPage() {
-  const { project_id = "", task_id = "" } = useParams<{
-    project_id: string;
-    task_id: string;
-  }>();
+  const { project_id = "", task_id = "" } = useParams<{ project_id: string; task_id: string }>();
+  const [searchParams] = useSearchParams();
+  const voiceMode = searchParams.get("voice_mode") === "true";
 
   const { $api } = useApi();
   const { data: projects } = $api.useQuery("get", "/project");
@@ -27,7 +27,8 @@ export default function TaskPage() {
   );
   const project = projects?.find((project) => project.id === project_id);
 
-  const { messages, setMessages, refetchStream, isStreaming } = useTaskStream({ taskId: task_id });
+  const { messages, setMessages } = useChatMessages(task_id);
+  const { refetchStream, isStreaming } = useTaskStream({ taskId: task_id });
   const { mutate: sendMessage } = $api.useMutation(
     "post", 
     "/task/{task_id}/messages", 
@@ -59,10 +60,12 @@ export default function TaskPage() {
     <div className="h-dvh flex flex-col overflow-hidden">
       <ProjectHeader project={project} task={task} projectTab="task-list" />
       <ChatContainer 
+        taskId={task_id}
         messages={messages} 
         onSendMessage={handleSendMessage} 
         loadingMessages={isLoadingDbMessages}
         isStreaming={isStreaming}
+        voiceMode={voiceMode}
       />
     </div>
   );

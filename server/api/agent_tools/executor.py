@@ -4,7 +4,8 @@ import nanoid
 from e2b_code_interpreter import AsyncSandbox, CommandExitException, AsyncCommandHandle, NotFoundException
 import api.task.service as task_service
 from sqlmodel.ext.asyncio.session import AsyncSession
-from api.task.settings import config
+from api.task.settings import config, REPO_PATH
+
 
 
 class SandboxExecutor:
@@ -22,22 +23,28 @@ class SandboxExecutor:
     async def __aenter__(self) -> "SandboxExecutor":
         if self.reconnect_sandbox_id:
             self.sbx = await AsyncSandbox.resume(api_key=config.e2b_api_key, sandbox_id=self.reconnect_sandbox_id, timeout=3_600)
-        else:
-            self.sbx = await AsyncSandbox.create(api_key=config.e2b_api_key, timeout=3_600)
-            await task_service.update_sandbox_id(self.session, self.task_id, self.sbx.sandbox_id)
+            processes = await self.sbx.commands.list()
+            last_command_process = next((p for p in processes if p.cmd == "/bin/bash" and p.args and p.args[-1] == "/bin/bash"), None)
+            if not last_command_process:
+                print("NO COMMAND FOUND IN RECONNECT, RESTARTING")
+                await self.restart_bash()
+            else:
+                self.command = await self.sbx.commands.connect(
+                    last_command_process.pid,
+                    on_stdout=self._on_stdout,
+                    on_stderr=self._on_stderr,
+                )
+            await task_service.update_sandbox_usage(self.session, self.task_id, "running")
+            return self
         
-        result = await self.sbx.commands.run(
-            "/bin/bash", 
-            background=True, 
-            on_stdout=self._on_stdout, 
-            on_stderr=self._on_stderr
-        )
-        self.command = result
+        self.sbx = await AsyncSandbox.create(api_key=config.e2b_api_key, timeout=3_600)
+        await task_service.update_sandbox_id(self.session, self.task_id, self.sbx.sandbox_id)
+        await self.restart_bash()
+        await task_service.update_sandbox_usage(self.session, self.task_id, "running")
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        if self.sbx:
-            await self.sbx.pause()
+        pass
 
     def _on_stdout(self, output: str) -> None:
         if self.current_marker:
@@ -52,18 +59,21 @@ class SandboxExecutor:
     async def run(self, command: str, raise_on_error: bool = False) -> str:
         if not self.sbx or not self.command:
             raise RuntimeError("SandboxExecutor must be used as an async context manager")
-            
+        await task_service.update_sandbox_usage(self.session, self.task_id, "running")
+        
         try:
             self.current_marker = f"COMMAND_COMPLETE_{nanoid.generate()}"
             self.output_buffer = []
             self.command_complete_event.clear()
             if self.command.exit_code is not None:
+                print("COMMAND EXITED, RESTARTING")
                 await self.restart_bash()
 
             command_with_marker = f"{command}; echo '{self.current_marker}'\n"
             try:
-                await self.sbx.commands.send_stdin(self.command.pid + 1, command_with_marker, request_timeout=5)
+                await self.sbx.commands.send_stdin(self.command.pid, command_with_marker, request_timeout=5)
             except NotFoundException:
+                print("COMMAND NOT FOUND, RESTARTING")
                 await self.restart_bash()
                 await self.sbx.commands.send_stdin(self.command.pid, command_with_marker, request_timeout=5)
             try:
@@ -96,7 +106,8 @@ class SandboxExecutor:
             "/bin/bash", 
             background=True, 
             on_stdout=self._on_stdout, 
-            on_stderr=self._on_stderr
+            on_stderr=self._on_stderr,
+            # cwd=REPO_PATH # errors for some reason
         )
         self.command = result
         self.output_buffer = []

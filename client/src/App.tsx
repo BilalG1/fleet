@@ -3,6 +3,7 @@ import { useEffect, Suspense } from "react";
 import { Route, Routes, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
+import { ChatProvider } from "@/components/chat";
 import { stackClientApp } from "./stack";
 import HomePage from "./components/home/page";
 import ProjectPage from "./components/project/page";
@@ -44,18 +45,20 @@ export default function App() {
     <Suspense fallback={null}>
       <StackProvider app={stackClientApp}>
         <QueryClientProvider client={queryClient}>
-          <StackTheme data-theme="dark">
-            <Routes>
-              <Route path="/handler/*" element={<HandlerRoutes />} />
-              <Route path="/" element={<HomePage />} />
-              <Route path="/project/new" element={<NewProject />} />
-              <Route path="/project/:project_id" element={<ProjectPage />} />
-              <Route path="/project/:project_id/task-list" element={<TaskListPage />} />
-              <Route path="/project/:project_id/task/:task_id" element={<TaskPage />} />
-              <Route path="/project/:project_id/settings" element={<ProjectSettingsPage />} />
-            </Routes>
-            <Toaster />
-          </StackTheme>
+          <ChatProvider>
+            <StackTheme data-theme="dark">
+              <Routes>
+                <Route path="/handler/*" element={<HandlerRoutes />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/project/new" element={<NewProject />} />
+                <Route path="/project/:project_id" element={<ProjectPage />} />
+                <Route path="/project/:project_id/task-list" element={<TaskListPage />} />
+                <Route path="/project/:project_id/task/:task_id" element={<TaskPage />} />
+                <Route path="/project/:project_id/settings" element={<ProjectSettingsPage />} />
+              </Routes>
+              <Toaster />
+            </StackTheme>
+          </ChatProvider>
         </QueryClientProvider>
       </StackProvider>
     </Suspense>

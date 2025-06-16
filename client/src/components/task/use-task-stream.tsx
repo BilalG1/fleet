@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef, type SetStateAction, type Dispatch } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApi } from "@/components/api/use-api";
-import type { ChatMessage, TextContentBlock } from "@/components/chat/types";
+import { useChatMessages } from "@/components/chat";
 import type { components } from "@/generated/openapi";
+import { updateLastMessageOrCreateText, updateLastMessageOrCreateWithContent } from "@/components/chat/message-utils";
 
 type TaskEvent =
   | components["schemas"]["MessageStartEvent"]
   | components["schemas"]["TextDeltaEvent"]
-  | components["schemas"]["ToolInputBlock"]
+  | components["schemas"]["ToolInputBlock-Input"]
   | components["schemas"]["ToolResultBlock"]
   | components["schemas"]["MessageStopEvent"]
   | components["schemas"]["ErrorEvent"];
@@ -16,19 +17,14 @@ interface UseTaskStreamProps {
 }
 
 interface UseTaskStreamReturn {
-  messages: ChatMessage[];
   isStreaming: boolean;
   streamingError: string;
-  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   refetchStream: () => void;
 }
 
 export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamReturn {
   const { $api, $parseSSEStream } = useApi();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "default_user_msg", role: "user", content: [{ type: "text", text: "" }] },
-    { id: "default_assistant_msg", role: "assistant", content: [{ type: "tool_input", tool_id: "setup_tool_id", tool_name: "setup", tool_input: "Starting container" }] }
-  ]);
+  const { messages, setMessages } = useChatMessages(taskId || "");
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingError, setStreamingError] = useState<string>("");
   const streamRef = useRef<{ cancel: () => void } | null>(null);
@@ -42,94 +38,26 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
 
   const handleTaskEvent = (taskEvent: TaskEvent) => {
     if (taskEvent.type === "tool_input") {
-      setMessages(prev => {
-        const updated = [...prev];
-        const lastMessageIndex = updated.length - 1;
-        const lastMessage = updated[lastMessageIndex];
-        if (!lastMessage || lastMessage.role !== "assistant") {
-          return [...prev, {
-            id: Math.random().toString(),
-            role: "assistant",
-            content: [taskEvent]
-          }];
-        };
-
-        const toolCallIndex = lastMessage.content.findIndex(block => block.type === "tool_input" && block.tool_id === taskEvent.tool_id);
-        if (toolCallIndex !== -1) {
-          updated[lastMessageIndex] = {
-            ...lastMessage,
-            content: [
-              ...lastMessage.content.slice(0, toolCallIndex),
-              taskEvent,
-              ...lastMessage.content.slice(toolCallIndex + 1)
-            ]
-          };
-        } else {
-          updated[lastMessageIndex] = {
-            ...lastMessage,
-            content: [...lastMessage.content, taskEvent]
-          };
-        };
-        return updated;
-      });
+      updateLastMessageOrCreateWithContent(
+        setMessages,
+        "assistant",
+        taskEvent,
+        "replace",
+        (block) => block.type === "tool_input" && block.tool_id === taskEvent.tool_id
+      );
     }
 
     else if (taskEvent.type === "tool_result") {
-      setMessages(prev => {
-        const updated = [...prev];
-        const lastMessageIndex = updated.length - 1;
-        const lastMessage = updated[lastMessageIndex];
-        if (!lastMessage || lastMessage.role !== "assistant") return prev;
-
-        updated[lastMessageIndex] = {
-          ...lastMessage,
-          content: [...lastMessage.content, taskEvent]
-        };
-
-        return updated;
-      });
+      updateLastMessageOrCreateWithContent(
+        setMessages,
+        "assistant",
+        taskEvent,
+        "add"
+      );
     }
 
     else if (taskEvent.type === "text_delta") {
-      setMessages(prev => {
-        const updated = [...prev];
-        const lastMessageIndex = updated.length - 1;
-        const lastMessage = updated[lastMessageIndex];
-
-        if (!lastMessage || lastMessage.role !== "assistant") {
-          return [...prev, {
-            id: Math.random().toString(),
-            role: "assistant",
-            content: [{ type: "text", text: taskEvent.text }]
-          }];
-        }
-
-        const lastContentBlock = lastMessage.content[lastMessage.content.length - 1];
-
-        if (lastContentBlock?.type === "text") {
-          updated[lastMessageIndex] = {
-            ...lastMessage,
-            content: [
-              ...lastMessage.content.slice(0, -1),
-              {
-                ...lastContentBlock,
-                text: lastContentBlock.text + taskEvent.text
-              }
-            ]
-          };
-        } else {
-          const newTextBlock: TextContentBlock = {
-            type: "text",
-            text: taskEvent.text
-          };
-          updated[lastMessageIndex] = {
-            ...lastMessage,
-            content: [...lastMessage.content, newTextBlock]
-          };
-        }
-
-        return updated;
-      });
+      updateLastMessageOrCreateText(setMessages, "assistant", taskEvent.text);
     }
 
     else if (taskEvent.type === "message_stop") {
@@ -184,10 +112,8 @@ export function useTaskStream({ taskId }: UseTaskStreamProps): UseTaskStreamRetu
   }, [task, messages]);
 
   return {
-    messages,
     isStreaming,
     streamingError,
-    setMessages,
     refetchStream,
   };
 } 

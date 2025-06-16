@@ -39,7 +39,7 @@ def with_sandbox(sandbox_id_attr: Literal["sandbox_id"] | None = None) -> Callab
 
 
 @with_sandbox()
-async def start_task_flow(task: Task, project: Project, gh_access_token: str, executor: SandboxExecutor, session: AsyncSession) -> None:
+async def start_task_flow(task: Task, project: Project, gh_access_token: str, skip_agent: bool, executor: SandboxExecutor, session: AsyncSession) -> None:
     git_output = await _run_setup_command(executor, task.id,  "sudo apt-get update && sudo apt-get install -y curl git",  "Installing git")
     await executor.run("&& ".join([
         "git config --global user.name \"Fleet\"",
@@ -48,7 +48,8 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, ex
         "git config --global push.autoSetupRemote true",
         f"echo \"https://fleet:{gh_access_token}@github.com\" > ~/.git-credentials"
     ]))
-    clone_command = f"git clone {project.repo_clone_url} {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
+    # clone_command = f"git clone {project.repo_clone_url} {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
+    clone_command = f"git clone https://github.com/stack-auth/stack-auth {REPO_PATH} && cd {REPO_PATH} && git checkout -b fleet-{nanoid.generate(size=8)}"
     clone_output = await _run_setup_command(executor,task.id, clone_command, f"Cloning repository {project.repo_name}")
     try:
         rules_output = await _run_setup_command(executor,task.id, f"cat {REPO_PATH}/{project.rules_file_path}", "Reading rules file")
@@ -72,9 +73,10 @@ async def start_task_flow(task: Task, project: Project, gh_access_token: str, ex
         tool_result=combined_output,
     ))
 
-    toolbox = AgentToolbox(executor)
-    starting_messages: list[MessageParam] = [{ "role": "user", "content": task.description }]
-    await run_agent_loop(task.id, toolbox, messages=starting_messages, user_rules_file_content=rules_output)
+    if not skip_agent:
+        toolbox = AgentToolbox(executor)
+        starting_messages: list[MessageParam] = [{ "role": "user", "content": task.description }]
+        await run_agent_loop(task.id, toolbox, messages=starting_messages, user_rules_file_content=rules_output)
 
 
 @with_sandbox("sandbox_id")

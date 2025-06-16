@@ -35,7 +35,7 @@ class AgentToolbox:
                 content=output
             )
         elif tool_call.root.tool_name == "str_replace_based_edit_tool":
-            result = await self._handle_text_editor_tool(tool_call.root.tool_input, tool_call.root.tool_id)
+            result = await self._handle_text_editor_tool(tool_call.root.tool_input)
             return ToolResultBlockParam(
                 type="tool_result",
                 tool_use_id=tool_call.root.tool_id,
@@ -43,7 +43,7 @@ class AgentToolbox:
             )
         raise ValueError(f"Unknown tool: {tool_call.root.tool_name}")
     
-    async def _handle_text_editor_tool(self, tool_input: TextEditorInput, group_id: str) -> str:
+    async def _handle_text_editor_tool(self, tool_input: TextEditorInput) -> str:
         if tool_input.command not in ["view", "str_replace", "create", "insert"]:
             raise ValueError(f"Unknown command: {tool_input.command}")
         

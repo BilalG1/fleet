@@ -21,6 +21,7 @@ class TaskCreate(BaseModel):
     description: str
     project_id: str
     gh_access_token: str
+    voice_mode: bool = False
 
 
 class TaskPublic(BaseModel):

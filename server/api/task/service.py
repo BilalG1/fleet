@@ -1,8 +1,11 @@
+from datetime import timedelta
+from sqlalchemy import cast, DateTime
 from typing import Sequence, Literal
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, desc
 from api.database.models import Task, Message, ContentBlock
 from .models import ContentBlock as ContentBlockModel
+from api.database.utils import utc_now
 
 
 async def create(
@@ -55,6 +58,34 @@ async def update_sandbox_id(
     task = (await session.exec(query)).one()
     task.sandbox_id = sandbox_id
     await session.commit()
+
+
+async def update_sandbox_usage(
+    session: AsyncSession,
+    task_id: int,
+    sandbox_state: Literal["running", "paused"] = "running",
+) -> None:
+    query = select(Task).where(Task.id == task_id)
+    task = (await session.exec(query)).one()
+    task.sandbox_state = sandbox_state
+    task.last_used_at = utc_now()
+    await session.commit()
+
+
+async def get_idle_sandboxes(
+    session: AsyncSession,
+    idle_minutes: int = 5,
+) -> Sequence[Task]:
+    """Get tasks with sandboxes that have been idle for more than idle_minutes"""
+    cutoff_time = utc_now() - timedelta(minutes=idle_minutes)
+    query = (
+        select(Task)
+        .where(Task.sandbox_id != None)
+        .where(Task.sandbox_state == "running")
+        .where(Task.last_used_at != None)
+        .where(cast(Task.last_used_at, DateTime) < cutoff_time)
+    )
+    return (await session.exec(query)).all()
 
 
 async def create_message(

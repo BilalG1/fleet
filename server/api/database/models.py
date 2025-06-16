@@ -26,6 +26,8 @@ class Task(SQLModel, table=True):
     description: str
     status: Literal["running", "pending_review", "completed"] = Field(default="running", sa_column=Column(String()))
     sandbox_id: str | None = Field(default=None)
+    sandbox_state: Literal["running", "paused"] = Field(default="paused", sa_column=Column(String()))
+    last_used_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=utc_now)
 
 

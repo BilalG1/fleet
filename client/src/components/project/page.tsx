@@ -7,23 +7,24 @@ import { Button } from "../ui/button";
 import { List, Settings } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useGhToken } from "@/components/auth/use-gh-token";
-import { ChatInput } from "../chat/chat-input";
-import { cn } from "@/lib/utils";
+import { ChatInput } from "../chat/ui/chat-input";
+import { cn, tryCatch } from "@/lib/utils";
 import { useScreenSize } from "@/components/general/use-screen-size";
+import { toast } from "sonner";
 
 export default function ProjectPage() {
+  const navigate = useNavigate();
   const { project_id = "" } = useParams<{ project_id: string }>();
   const { isMobile } = useScreenSize();
   const { ghToken } = useGhToken();
-  const navigate = useNavigate();
   const { $api } = useApi();
   const { data: projects } = $api.useQuery("get", "/project");
   const project = projects?.find((project) => project.id === project_id);
   const [sentMessage, setSentMessage] = useState(false);
 
   const createTaskMutation = $api.useMutation("post", "/task", {
-    onSuccess: (taskId) => {
-      navigate(`/project/${project_id}/task/${taskId}`);
+    onSuccess: (taskId, variables) => {
+      navigate(`/project/${project_id}/task/${taskId}?${variables.body.voice_mode ? "voice_mode=true" : ""}`);
     },
   });
 
@@ -31,13 +32,22 @@ export default function ProjectPage() {
     if (message && ghToken) {
       setSentMessage(true);
       createTaskMutation.mutate({
-        body: { description: message, project_id: project_id, gh_access_token: ghToken }
+        body: { description: message, project_id: project_id, gh_access_token: ghToken, voice_mode: false }
       });
     }
   };
 
-  const handleStartVoiceMode = () => {
-    console.log("start voice mode");
+  const handleStartVoiceMode = async (message: string) => {
+    if (!ghToken) return;
+    const { error } = await tryCatch(navigator.mediaDevices.getUserMedia({ audio: true }));
+    if (error) {
+      toast.error("Enable microphone to use voice mode");
+      return
+    }
+    setSentMessage(true)
+    createTaskMutation.mutate({
+      body: { description: message, project_id: project_id, gh_access_token: ghToken, voice_mode: true }
+    });
   };
 
   return (
@@ -50,7 +60,7 @@ export default function ProjectPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link to={`/project/${project_id}/task-list`}>
-                    <Button size="icon"><List /></Button>
+                    <Button size="icon" variant="outline"><List /></Button>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -60,7 +70,7 @@ export default function ProjectPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link to={`/project/${project_id}/settings`}>
-                    <Button size="icon"><Settings /></Button>
+                    <Button size="icon" variant="outline"><Settings /></Button>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>

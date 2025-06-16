@@ -125,6 +125,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/task/{task_id}/tool-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute Tool Calls
+         * @description Execute tool calls for voice mode - accepts external task ID and array of tool calls
+         */
+        post: operations["execute_tool_calls_task__task_id__tool_calls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/openai-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Openai Session */
+        get: operations["get_openai_session_auth_openai_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -198,7 +235,7 @@ export interface components {
              */
             role: "user" | "assistant";
             /** Content */
-            content: (components["schemas"]["ToolInputBlock"] | components["schemas"]["ToolResultBlock"] | components["schemas"]["TextBlock"])[];
+            content: (components["schemas"]["ToolInputBlock-Output"] | components["schemas"]["ToolResultBlock"] | components["schemas"]["TextBlock"])[];
         };
         /** MessageStartEvent */
         MessageStartEvent: {
@@ -255,6 +292,11 @@ export interface components {
             project_id: string;
             /** Gh Access Token */
             gh_access_token: string;
+            /**
+             * Voice Mode
+             * @default false
+             */
+            voice_mode: boolean;
         };
         /** TaskPublic */
         TaskPublic: {
@@ -315,7 +357,9 @@ export interface components {
             tool_input: components["schemas"]["BashToolInput"];
         };
         /** ToolInputBlock */
-        ToolInputBlock: components["schemas"]["ToolInputBash"] | components["schemas"]["ToolInputTextEditor"] | components["schemas"]["ToolInputSetup"];
+        "ToolInputBlock-Input": components["schemas"]["ToolInputBash"] | components["schemas"]["ToolInputTextEditor"] | components["schemas"]["ToolInputSetup"];
+        /** ToolInputBlock */
+        "ToolInputBlock-Output": components["schemas"]["ToolInputBash"] | components["schemas"]["ToolInputTextEditor"] | components["schemas"]["ToolInputSetup"];
         /** ToolInputSetup */
         ToolInputSetup: {
             /**
@@ -598,7 +642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageStartEvent"] | components["schemas"]["MessageStopEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["ToolInputBlock"] | components["schemas"]["ToolResultBlock"] | components["schemas"]["TextDeltaEvent"];
+                    "application/json": components["schemas"]["MessageStartEvent"] | components["schemas"]["MessageStopEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["ToolInputBlock-Output"] | components["schemas"]["ToolResultBlock"] | components["schemas"]["TextDeltaEvent"];
                 };
             };
             /** @description Validation Error */
@@ -674,6 +718,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_tool_calls_task__task_id__tool_calls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolInputBlock-Input"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResultBlock"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_openai_session_auth_openai_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
         };
