@@ -5,7 +5,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from .settings import config
 
-engine = create_async_engine(config.connection_string, connect_args={"server_settings": {"timezone": "UTC"}})
+engine = create_async_engine(
+    config.connection_string, 
+    connect_args={"server_settings": {"timezone": "UTC"}},
+    pool_pre_ping=True,
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

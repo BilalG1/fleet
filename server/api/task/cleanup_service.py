@@ -1,8 +1,7 @@
 import asyncio
-import logging
 from typing import Any
 from e2b_code_interpreter import AsyncSandbox
-from api.database.dependencies import get_session
+from api.database.dependencies import async_session
 import api.task.service as task_service
 from api.task.settings import config
 
@@ -47,7 +46,7 @@ class SandboxCleanupService:
 
     async def _cleanup_idle_sandboxes(self) -> None:
         """Find and pause idle sandboxes"""
-        async for session in get_session():
+        async with async_session() as session:
             try:
                 idle_tasks = await task_service.get_idle_sandboxes(session, self.idle_minutes)
                 

@@ -5,7 +5,7 @@ from api.agent_tools.executor import SandboxExecutor
 from api.agent_tools.loop import run_agent_loop
 from api.agent_tools.tools import AgentToolbox
 from anthropic.types import MessageParam
-from api.database.dependencies import get_session
+from api.database.dependencies import async_session
 import api.task.queue_service as queue_service
 from api.agent_tools.models import ToolInputSetup, ToolResultBlock
 import api.task.service as task_service
@@ -26,7 +26,7 @@ def with_sandbox(sandbox_id_attr: Literal["sandbox_id"] | None = None) -> Callab
                 raise ValueError("First argument must be a Task instance")
             sandbox_id = getattr(task, sandbox_id_attr) if sandbox_id_attr else None
             
-            async for session in get_session():
+            async with async_session() as session:
                 async with SandboxExecutor(task.id, session, sandbox_id) as executor:
                     try:
                         return await func(*args, executor, session, **kwargs)
