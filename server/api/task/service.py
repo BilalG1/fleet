@@ -4,6 +4,7 @@ from typing import Sequence, Literal
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, desc
 from api.database.models import Task, Message, ContentBlock
+from api.database.base_service import BaseService
 from .models import ContentBlock as ContentBlockModel
 from api.database.utils import utc_now
 
@@ -17,36 +18,40 @@ async def create(
         project_id=project_id,
         description=description,
     )
-    session.add(task)
-    await session.commit()
-    return task
+    return await BaseService.create(session, task)
 
 
 async def get(
     session: AsyncSession,
     external_task_id: str,
 ) -> Task:
-    query = select(Task).where(Task.external_id == external_task_id)
-    return (await session.exec(query)).one()
+    return await BaseService.get_by_external_id(
+        session, 
+        Task, 
+        external_task_id,
+        not_found_message="Task not found"
+    )
 
 
 async def get_all_for_project(
     session: AsyncSession,
     project_id: int,
 ) -> Sequence[Task]:
-    query = select(Task).where(Task.project_id == project_id)
-    return (await session.exec(query)).all()
+    return await BaseService.get_many(
+        session, 
+        Task, 
+        filters={"project_id": project_id},
+        order_by="created_at"
+    )
 
 
 async def update_title(
     session: AsyncSession,
     external_task_id: str,
     title: str,
-) -> None:
-    query = select(Task).where(Task.external_id == external_task_id)
-    task = (await session.exec(query)).one()
-    task.title = title
-    await session.commit() 
+) -> Task:
+    task = await get(session, external_task_id)
+    return await BaseService.update(session, task, title=title)
 
 
 async def update_sandbox_id(

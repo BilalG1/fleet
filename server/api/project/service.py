@@ -1,7 +1,7 @@
 from typing import Sequence
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
 from api.database.models import Project
+from api.database.base_service import BaseService
 
 
 async def create(
@@ -19,33 +19,48 @@ async def create(
         repo_clone_url=repo_clone_url,
         user_id=user_id,
     )
-    session.add(project)
-    await session.commit()
-    return project.external_id
+    created_project = await BaseService.create(
+        session, 
+        project, 
+        conflict_message="Project with this repository already exists"
+    )
+    return created_project.external_id
 
 
 async def get(
     session: AsyncSession,
     external_project_id: str,
 ) -> Project:
-    query = select(Project).where(Project.external_id == external_project_id)
-    return (await session.exec(query)).one()
+    return await BaseService.get_by_external_id(
+        session, 
+        Project, 
+        external_project_id,
+        not_found_message="Project not found"
+    )
 
 
 async def get_by_id(
     session: AsyncSession,
     project_id: int,
 ) -> Project:
-    query = select(Project).where(Project.id == project_id)
-    return (await session.exec(query)).one()
+    return await BaseService.get_by_id(
+        session, 
+        Project, 
+        project_id,
+        not_found_message="Project not found"
+    )
 
 
 async def get_all(
     session: AsyncSession,
     user_id: str,
 ) -> Sequence[Project]:
-    query = select(Project).where(Project.user_id == user_id)
-    return (await session.exec(query)).all()
+    return await BaseService.get_many(
+        session, 
+        Project, 
+        filters={"user_id": user_id},
+        order_by="created_at"
+    )
 
 
 async def update_settings(
@@ -53,7 +68,10 @@ async def update_settings(
     project: Project,
     rules_file: str,
     setup_script: str,
-) -> None:
-    project.rules_file_path = rules_file
-    project.setup_script_path = setup_script
-    await session.commit()
+) -> Project:
+    return await BaseService.update(
+        session,
+        project,
+        rules_file_path=rules_file,
+        setup_script_path=setup_script
+    )

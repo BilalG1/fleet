@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from api.database.dependencies import DbSession
 from api.auth.dependencies import AuthenticatedUserId
+from api.auth.resource_auth import AuthorizedProject
 from github import Github, Auth
 from api.task.models import TaskPublic
 import api.task.service as task_service
-from .service import get, create, update_settings, get_all
+from .service import create, update_settings, get_all
 from .models import ProjectPublic
 
 router = APIRouter(prefix="/project")
@@ -33,15 +34,11 @@ async def create_project(
 
 @router.post("/{project_id}/settings")
 async def update_project_settings(
-    project_id: str,
     rules_file: str,
     setup_script: str,
-    user_id: AuthenticatedUserId,
+    project: AuthorizedProject,
     db: DbSession
 ) -> None:
-    project = await get(db, project_id)
-    if project.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
     await update_settings(db, project, rules_file, setup_script)
 
 
@@ -56,12 +53,8 @@ async def get_projects(
 
 @router.get("/{project_id}/tasks")
 async def get_tasks(
-    project_id: str,
-    user_id: AuthenticatedUserId,
+    project: AuthorizedProject,
     db: DbSession,
 ) -> list[TaskPublic]:
-    project = await get(db, project_id)
-    if project.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    tasks = await task_service.get_tasks(db, project.id)
+    tasks = await task_service.get_all_for_project(db, project.id)
     return [TaskPublic.from_task(task) for task in tasks]
